@@ -58,28 +58,28 @@ def cnn_network():
         def __init__(self):
             super(CNN, self).__init__()
             self.conv1 = nn.Conv2d(3, 10, 3, 1, 1)
-            #self.norm1 = nn.BatchNorm2d(10)
+            self.norm1 = nn.BatchNorm2d(10)
             
             self.conv2 = nn.Conv2d(10, 20, 3, 1, 1)
-            #self.norm2 = nn.BatchNorm2d(20)
+            self.norm2 = nn.BatchNorm2d(20)
             
             self.conv3 = nn.Conv2d(20, 40, 3, 1, 1)
-            #self.norm3 = nn.BatchNorm2d(40)
+            self.norm3 = nn.BatchNorm2d(40)
 
             self.pool = nn.MaxPool2d(2, 2)
 
             self.linear1 = nn.Linear(40 * 4 * 4, 100)
-            #self.norm4 = nn.BatchNorm1d(100)
+            self.norm4 = nn.BatchNorm1d(100)
 
             self.linear2 = nn.Linear(100, 10)
             self.dropout = nn.Dropout(0.2)
         def forward(self, x):
-            x = self.pool(F.relu(self.conv1(x)))
-            x = self.pool(F.relu(self.conv2(x)))
-            x = self.pool(F.relu(self.conv3(x)))
+            x = self.pool(self.norm1(F.relu(self.conv1(x))))
+            x = self.pool(self.norm2(F.relu(self.conv2(x))))
+            x = self.pool(self.norm3(F.relu(self.conv3(x))))
             x = x.view(-1, 40 * 4 * 4)
             x = self.dropout(x)
-            x = F.relu(self.linear1(x))
+            x = self.norm4(F.relu(self.linear1(x)))
             x = self.dropout(x)
             x = F.log_softmax(self.linear2(x), dim=1)
             return x
