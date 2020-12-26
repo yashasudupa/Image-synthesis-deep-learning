@@ -15,54 +15,59 @@ from numpy import savetxt
 
 def load_datasets(val_data_size = 0.2, batch_size = 100):
 
-    # Transform to convert to tensors, Data augmentation and Normalize the data
-    transform = \
-    transforms.Compose([transforms.RandomHorizontalFlip(0.5),\
-                        transforms.RandomGrayscale(0.1),\
-                        transforms.ToTensor(), \
-                        transforms.Normalize((0.5, 0.5, 0.5), \
-                                            (0.5, 0.5, 0.5))])
+    #vocab = torch.load("mnist/MNIST/processed/training.pt")
+    #print("PT samples", vocab)
 
-    train_data = datasets.CIFAR10('data', train=True, 
-                                download=True, 
+    transform = transforms.Compose([transforms.RandomHorizontalFlip(0.5), \
+                        transforms.RandomGrayscale(0.1), \
+                        transforms.ToTensor(), \
+                        transforms.Normalize((0.5,), (0.5,))])
+
+    train_data = datasets.MNIST('MNIST/processed/training.pt', train=True, 
+                                download=False, 
                                 transform=transform)
 
-    vocab = torch.load("mnist/MNIST/processed/training.pt")
-    print("PT samples", vocab)
+    test_data = datasets.MNIST('MNIST/processed/test.pt', train=False, 
+                                download=False, 
+                                transform=transform)
 
+    print(train_data)
+    
     # Load training and testing datasets
     mat = io.loadmat('mnist.mat')
    
     tx_data = mat['trainX']
     tx_data = np.reshape(tx_data, (60000, 28, 28))
     tx_data = torch.from_numpy(tx_data)
-    tx_data = TensorDataset(tx_data)
     tx_data.transform = transforms.Compose([transforms.RandomHorizontalFlip(0.5), \
                         transforms.RandomGrayscale(0.1), \
                         transforms.ToTensor(), \
-                        transforms.Normalize((0.5, 0.5, 0.5), \
-                                            (0.5, 0.5, 0.5))])
+                        transforms.Normalize((0.5), \
+                                            (0.5))])
 
-    tx_target = mat['trainY']
+    tx_target = mat['trainY'].T
     tx_target = torch.from_numpy(tx_target)
-    tx_target = TensorDataset(tx_target)
-    train_data = (tx_data, tx_target)    
+    #print(np.shape(tx_data))
+    #print(np.shape(tx_target))
+    #train_data = (tx_data, tx_target)    
+    #print(train_data)
 
     ty_data = mat['testX']
     ty_data = np.reshape(ty_data, (10000, 28, 28))
     ty_data = torch.from_numpy(ty_data)
-    ty_data = TensorDataset(ty_data)
     ty_data.transform = transforms.Compose([transforms.RandomHorizontalFlip(0.5), \
                         transforms.RandomGrayscale(0.1), \
                         transforms.ToTensor(), \
-                        transforms.Normalize((0.5, 0.5, 0.5), \
-                                            (0.5, 0.5, 0.5))])
+                        transforms.Normalize((0.5), \
+                                            (0.5))])
 
-    ty_target = mat['testY']
+    ty_target = mat['testY'].T
     ty_target = torch.from_numpy(ty_target)
-    ty_target = TensorDataset(ty_target)
-    test_data = (ty_data, ty_target)
-
+    #print(np.shape(ty_data))
+    #print(np.shape(ty_target))
+    #test_data = (ty_data, ty_target)
+    #print(test_data)
+    
     # Shuffling the training and validation datasets
     idx = list(range(len(train_data)))
 
@@ -92,29 +97,28 @@ def cnn_network():
     class CNN(nn.Module):
         def __init__(self):
             super(CNN, self).__init__()
-            self.conv1 = nn.Conv2d(3, 10, 3, 1, 1)
+
+            # conv2d(in_channels, out_channels, kernel_size, stride, pading)
+            self.conv1 = nn.Conv2d(1, 10, 5, 1, 0)
             self.norm1 = nn.BatchNorm2d(10)
             
-            self.conv2 = nn.Conv2d(10, 20, 3, 1, 1)
+            self.conv2 = nn.Conv2d(10, 20, 3, 1, 0)
             self.norm2 = nn.BatchNorm2d(20)
-            
-            self.conv3 = nn.Conv2d(20, 40, 3, 1, 1)
-            self.norm3 = nn.BatchNorm2d(40)
 
-            self.pool = nn.MaxPool2d(2, 2)
+            self.pool1 = nn.MaxPool2d(6, 2)
+            self.pool2 = nn.MaxPool2d(2, 2)
 
-            self.linear1 = nn.Linear(40 * 4 * 4, 100)
-            self.norm4 = nn.BatchNorm1d(100)
+            self.linear1 = nn.Linear(20 * 4 * 4, 100)
+            self.norm3 = nn.BatchNorm1d(100)
 
             self.linear2 = nn.Linear(100, 10)
             self.dropout = nn.Dropout(0.2)
         def forward(self, x):
-            x = self.pool(self.norm1(F.relu(self.conv1(x))))
-            x = self.pool(self.norm2(F.relu(self.conv2(x))))
-            x = self.pool(self.norm3(F.relu(self.conv3(x))))
-            x = x.view(-1, 40 * 4 * 4)
+            x = self.pool1(self.norm1(F.relu(self.conv1(x))))
+            x = self.pool2(self.norm2(F.relu(self.conv2(x))))
+            x = x.view(-1, 20 * 4 * 4)
             x = self.dropout(x)
-            x = self.norm4(F.relu(self.linear1(x)))
+            x = self.norm3(F.relu(self.linear1(x)))
             x = self.dropout(x)
             x = F.log_softmax(self.linear2(x), dim=1)
             return x
@@ -122,7 +126,7 @@ def cnn_network():
 
 def training_testing_CNN(train_loader, val_loader, test_loader):
 
-    epochs=100
+    epochs=50
     model = cnn_network()
     loss_function = nn.NLLLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -146,7 +150,7 @@ def training_testing_CNN(train_loader, val_loader, test_loader):
         for data, target in train_loader:
             iterations += 1
             # Forward and backward pass of the training data
-            pred = model(data)
+            pred = model(data) 
             loss = loss_function(pred, target)
             optimizer.zero_grad()
             loss.backward()
@@ -155,15 +159,16 @@ def training_testing_CNN(train_loader, val_loader, test_loader):
             p = torch.exp(pred)
             top_p, top_class = p.topk(1, dim=1)
             acc += accuracy_score(target, top_class)
+
          # Validation of model for given epoch
         if e%5 == 0 or e == 1:
             x_axis.append(e)
             with torch.no_grad():
                 model.eval()
-                """
-                For loop through the batches of
-                the validation set
-                """
+                
+                #For loop through the batches of
+                #the validation set
+                
                 for data_val, target_val in val_loader:
                     iter_2 += 1
                     val_pred = model(data_val)
@@ -171,8 +176,8 @@ def training_testing_CNN(train_loader, val_loader, test_loader):
                     val_losss += val_loss.item()
                     val_p = torch.exp(val_pred)
                     top_p, val_top_class = val_p.topk(1, dim=1)
-                    val_accs += accuracy_score(target_val, \
-                                            val_top_class)
+                    val_accs += accuracy_score(target_val, 
+                                            val_top_class)        
             # Losses and accuracy are appended to be printed
             train_losses.append(losses/iterations)
             val_losses.append(val_losss/iter_2)
@@ -208,7 +213,7 @@ def training_testing_CNN(train_loader, val_loader, test_loader):
         top_p, top_class_test = test_pred.topk(1, dim=1)
         acc_test += accuracy_score(target_test, top_class_test)
     print(acc_test/iter_3)
-
+    
 if __name__ == '__main__':
     train_loader, val_loader, test_loader = load_datasets()
     training_testing_CNN(train_loader, val_loader, test_loader)
