@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 import torch
 from torch import nn, optim
@@ -22,7 +21,8 @@ def load_datasets(val_data_size = 0.2, batch_size = 100):
     
     # Load training and testing datasets
     mat = io.loadmat('mnist.mat')
-   
+    
+    # Training dataset from MNIST.mat
     tx_data = mat['trainX']
     tx_data = np.reshape(tx_data, (60000, 28, 28))
     tx_data = torch.from_numpy(tx_data)
@@ -35,6 +35,7 @@ def load_datasets(val_data_size = 0.2, batch_size = 100):
                                 download=False, 
                                 transform=transform)
 
+    # Test dataset from MNIST.mat
     ty_data = mat['testX']
     ty_data = np.reshape(ty_data, (10000, 28, 28))
     ty_data = torch.from_numpy(ty_data)
@@ -58,6 +59,7 @@ def load_datasets(val_data_size = 0.2, batch_size = 100):
     train_sampler = SubsetRandomSampler(train_idx)
     val_sampler = SubsetRandomSampler(val_idx)
 
+    # Fetch datasamples into batches
     train_loader = DataLoader(train_data, \
                             batch_size=batch_size, \
                             sampler=train_sampler)
@@ -124,12 +126,11 @@ def training_testing_CNN(train_loader, val_loader, test_loader):
     iter_2 = 0
 
     x_axis = []
-    # For loop through the epochs
+    # Loop through the iterations
     for e in range(1, epochs+1):
         model.train()
         """
-        Loop through the batches (created using
-        the train loader)
+        Iterate through the batches
         """
         for data, target in train_loader:
             iterations += 1
@@ -144,13 +145,13 @@ def training_testing_CNN(train_loader, val_loader, test_loader):
             top_p, top_class = p.topk(1, dim=1)
             acc += accuracy_score(target, top_class)
 
-         # Validation of model for given epoch
+         # Validation of the model for the given iteration
         if e%5 == 0 or e == 1:
             x_axis.append(e)
             with torch.no_grad():
                 model.eval()
                 
-                #For loop through the batches of
+                #Iterate through the batches of
                 #the validation set
                 
                 for data_val, target_val in val_loader:
@@ -161,7 +162,8 @@ def training_testing_CNN(train_loader, val_loader, test_loader):
                     val_p = torch.exp(val_pred)
                     top_p, val_top_class = val_p.topk(1, dim=1)
                     val_accs += accuracy_score(target_val, 
-                                            val_top_class)        
+                                            val_top_class) 
+
             # Losses and accuracy are appended to be printed
             train_losses.append(losses/iterations)
             val_losses.append(val_losss/iter_2)
