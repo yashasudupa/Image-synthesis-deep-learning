@@ -15,23 +15,10 @@ from numpy import savetxt
 
 def load_datasets(val_data_size = 0.2, batch_size = 100):
 
-    #vocab = torch.load("mnist/MNIST/processed/training.pt")
-    #print("PT samples", vocab)
-
     transform = transforms.Compose([transforms.RandomHorizontalFlip(0.5), \
                         transforms.RandomGrayscale(0.1), \
                         transforms.ToTensor(), \
                         transforms.Normalize((0.5,), (0.5,))])
-
-    train_data = datasets.MNIST('MNIST/processed/training.pt', train=True, 
-                                download=False, 
-                                transform=transform)
-
-    test_data = datasets.MNIST('MNIST/processed/test.pt', train=False, 
-                                download=False, 
-                                transform=transform)
-
-    print(train_data)
     
     # Load training and testing datasets
     mat = io.loadmat('mnist.mat')
@@ -39,34 +26,27 @@ def load_datasets(val_data_size = 0.2, batch_size = 100):
     tx_data = mat['trainX']
     tx_data = np.reshape(tx_data, (60000, 28, 28))
     tx_data = torch.from_numpy(tx_data)
-    tx_data.transform = transforms.Compose([transforms.RandomHorizontalFlip(0.5), \
-                        transforms.RandomGrayscale(0.1), \
-                        transforms.ToTensor(), \
-                        transforms.Normalize((0.5), \
-                                            (0.5))])
 
     tx_target = mat['trainY'].T
     tx_target = torch.from_numpy(tx_target)
-    #print(np.shape(tx_data))
-    #print(np.shape(tx_target))
-    #train_data = (tx_data, tx_target)    
-    #print(train_data)
+    train_data = (tx_data, tx_target)
+    torch.save(train_data, 'mnist/MNIST/processed/training.pt')
+    train_data = datasets.MNIST('mnist', train=True, 
+                                download=False, 
+                                transform=transform)
 
     ty_data = mat['testX']
     ty_data = np.reshape(ty_data, (10000, 28, 28))
     ty_data = torch.from_numpy(ty_data)
-    ty_data.transform = transforms.Compose([transforms.RandomHorizontalFlip(0.5), \
-                        transforms.RandomGrayscale(0.1), \
-                        transforms.ToTensor(), \
-                        transforms.Normalize((0.5), \
-                                            (0.5))])
-
+    
     ty_target = mat['testY'].T
     ty_target = torch.from_numpy(ty_target)
-    #print(np.shape(ty_data))
-    #print(np.shape(ty_target))
-    #test_data = (ty_data, ty_target)
-    #print(test_data)
+    
+    test_data = (ty_data, ty_target)
+    torch.save(test_data, 'mnist/MNIST/processed/test.pt')
+    test_data = datasets.MNIST('mnist', train=True, 
+                                download=False, 
+                                transform=transform)
     
     # Shuffling the training and validation datasets
     idx = list(range(len(train_data)))
@@ -98,7 +78,7 @@ def cnn_network():
         def __init__(self):
             super(CNN, self).__init__()
 
-            # conv2d(in_channels, out_channels, kernel_size, stride, pading)
+            # conv2d(in_channels, out_channels, kernel_size, stride, padding)
             self.conv1 = nn.Conv2d(1, 10, 5, 1, 0)
             self.norm1 = nn.BatchNorm2d(10)
             
@@ -213,7 +193,7 @@ def training_testing_CNN(train_loader, val_loader, test_loader):
         top_p, top_class_test = test_pred.topk(1, dim=1)
         acc_test += accuracy_score(target_test, top_class_test)
     print(acc_test/iter_3)
-    
+
 if __name__ == '__main__':
     train_loader, val_loader, test_loader = load_datasets()
     training_testing_CNN(train_loader, val_loader, test_loader)
